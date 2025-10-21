@@ -632,3 +632,11 @@ AttributeError: 'str' object has no attribute 'exists'
 2025-10-21 18:19:44,019 - agent.graph - INFO - All implementation steps completed
 2025-10-21 18:19:44,019 - agent.graph - INFO - === CODER AGENT COMPLETED ===
 2025-10-21 18:19:44,020 - agent.api - INFO - Task 807f225f-890b-47d9-b521-bebd76842269 completed successfully
+2025-10-21 20:55:45,105 - agent.graph - INFO - LangGraph agent compiled and ready
+2025-10-21 20:55:45,113 - __main__ - INFO - ============================================================
+2025-10-21 20:55:45,113 - __main__ - INFO - STARTING AI WEBSITE BUILDER API SERVER
+2025-10-21 20:55:45,113 - __main__ - INFO - ============================================================
+2025-10-21 20:55:45,113 - __main__ - INFO - Server will be available at: http://localhost:8000
+2025-10-21 20:55:45,113 - __main__ - INFO - API documentation at: http://localhost:8000/docs
+2025-10-21 20:55:45,113 - __main__ - INFO - ============================================================
+2025-10-21 20:55:46,256 - agent.graph - INFO - LangGraph agent compiled and ready

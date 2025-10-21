@@ -61,36 +61,19 @@ The application includes a FastAPI server that provides REST API endpoints for b
    ```bash
    uvicorn agent.api:app --host 0.0.0.0 --port 8000 --reload
    ```
-   - Access the API at `http://localhost:8000` or your configured host/port.
-   - The server includes CORS middleware for frontend integration.
-
-2. **API Endpoints**:
-   - `GET /`: Health check endpoint.
-   - `POST /api/build-website`: Submit a user prompt to start building a website asynchronously. Returns a `task_id`.
-   - `GET /api/status/{task_id}`: Check the status and progress of a build task.
-   - `GET /api/result/{task_id}`: Get the final result of a completed build, including project path and files.
-   - `GET /api/download/{task_id}`: Download the generated project as a ZIP file.
-   - `GET /api/file/{task_id}/{file_path}`: Retrieve the content of a specific file from the project.
-   - `DELETE /api/task/{task_id}`: Delete a task and its associated project files.
-   - `GET /api/tasks`: List all tasks (for debugging).
-
-3. **Example Usage**:
-   - Send a POST request to `/api/build-website` with JSON: `{"user_prompt": "Create a simple portfolio website"}`.
-   - Use the returned `task_id` to poll `/api/status/{task_id}` until the status is "completed".
-   - Then, download or access files via the other endpoints.
-
-## Usage (API Server Mode)
-
-The primary way to use this tool is via the FastAPI server, which provides REST API endpoints for building websites asynchronously.
-
-1. **Start the Server**:
+   Alternatively, you can run it using:
    ```bash
-   uvicorn agent.api:app --host 0.0.0.0 --port 8000 --reload
+   python -m agent.main
    ```
    - Access the API at `http://localhost:8000` or your configured host/port.
    - The server includes CORS middleware for frontend integration.
 
-2. **API Endpoints**:
+2. **API Documentation and Inference**:
+   - Once the server is running, visit `http://localhost:8000/docs` to access the interactive Swagger UI.
+   - Use the Swagger docs to explore, test, and interact with the API endpoints for inference and website building.
+   - This provides a user-friendly interface for sending requests and viewing responses without needing external tools.
+
+3. **API Endpoints**:
    - `GET /`: Health check endpoint.
    - `POST /api/build-website`: Submit a user prompt to start building a website asynchronously. Returns a `task_id`.
    - `GET /api/status/{task_id}`: Check the status and progress of a build task.
@@ -100,7 +83,7 @@ The primary way to use this tool is via the FastAPI server, which provides REST 
    - `DELETE /api/task/{task_id}`: Delete a task and its associated project files.
    - `GET /api/tasks`: List all tasks (for debugging).
 
-3. **Example Usage**:
+4. **Example Usage**:
    - Send a POST request to `/api/build-website` with JSON: `{"user_prompt": "Create a simple portfolio website"}`.
    - Use the returned `task_id` to poll `/api/status/{task_id}` until the status is "completed".
    - Then, download or access files via the other endpoints.

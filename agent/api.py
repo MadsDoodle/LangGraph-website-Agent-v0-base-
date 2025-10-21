@@ -70,24 +70,30 @@ class BuildResult(BaseModel):
 def run_agent_task(task_id: str, user_prompt: str):
     """Background task to execute the agent"""
     try:
+        from agent.tools import set_project_root  # Add this import
+        
         task_storage[task_id]["status"] = "processing"
         task_storage[task_id]["progress"] = "planner"
         
         logger.info(f"Starting task {task_id}")
         
-        # Initialize project root and ensure it's a Path object
-        project_path_str = init_project_root()
-        project_path = Path(project_path_str) if isinstance(project_path_str, str) else project_path_str
+        # Initialize project root and SET IT for this thread
+        project_path = init_project_root()  # Now returns Path object
+        set_project_root(project_path)  # CRITICAL: Set for current thread
         logger.info(f"Initialized project directory: {project_path}")
         
         # Update progress
         task_storage[task_id]["progress"] = "architect"
-        
-        # Run the agent
+
+        # Run the agent with project_root in initial state
         result = agent.invoke(
-            {"user_prompt": user_prompt},
+            {
+                "user_prompt": user_prompt,
+                "project_root": str(project_path)
+            },
             {"recursion_limit": 100}
         )
+
         
         # Get list of generated files
         files = []

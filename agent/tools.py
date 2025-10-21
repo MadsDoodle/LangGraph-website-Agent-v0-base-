@@ -6,17 +6,45 @@
 # while maintaining security boundaries within the project root directory.
 
 import pathlib
-# Maps to: filesystem path operations for cross-platform compatibility
 import subprocess
-# Maps to: running shell commands for project setup and execution
+import threading
+import logging
 from typing import Tuple
-# Maps to: type hints for function return values (returncode, stdout, stderr)
 
 from langchain_core.tools import tool
-# Maps to: decorator for creating LangChain tools that can be used by AI agents
 
-# PROJECT_ROOT will be set dynamically with a serial ID
-PROJECT_ROOT = None
+logger = logging.getLogger(__name__)
+
+# Thread-local storage for PROJECT_ROOT to support concurrent tasks
+_thread_local = threading.local()
+
+# Global fallback for when thread-local doesn't work (e.g., in React agent context)
+_global_project_root = None
+_global_lock = threading.Lock()
+
+
+def get_project_root():
+    """Get the project root for the current thread, with global fallback."""
+    # Try thread-local first
+    thread_root = getattr(_thread_local, 'PROJECT_ROOT', None)
+    if thread_root is not None:
+        return thread_root
+    
+    # Fallback to global
+    with _global_lock:
+        return _global_project_root
+
+
+def set_project_root(path: pathlib.Path):
+    """Set the project root for the current thread and globally."""
+    global _global_project_root
+    
+    # Set thread-local
+    _thread_local.PROJECT_ROOT = path
+    
+    # Also set global as fallback
+    with _global_lock:
+        _global_project_root = path
 
 
 def get_next_serial_id() -> int:
@@ -40,33 +68,45 @@ def get_next_serial_id() -> int:
     return max(serial_ids) + 1 if serial_ids else 1
 
 
-# safe_path_for_project maps to: security function that prevents path traversal attacks
-# It ensures all file operations stay within the designated PROJECT_ROOT directory
 def safe_path_for_project(path: str) -> pathlib.Path:
+    """Security function that prevents path traversal attacks."""
+    PROJECT_ROOT = get_project_root()
+    
     if PROJECT_ROOT is None:
         raise RuntimeError("PROJECT_ROOT not initialized. Call init_project_root() first.")
     
+    # Strip leading slashes - treat all paths as relative to project root
+    path = path.lstrip('/')
+    
+    # Build the full path relative to project root
     p = (PROJECT_ROOT / path).resolve()
-    if PROJECT_ROOT.resolve() not in p.parents and PROJECT_ROOT.resolve() != p.parent and PROJECT_ROOT.resolve() != p:
-        raise ValueError("Attempt to write outside project root")
+    root = PROJECT_ROOT.resolve()
+    
+    # Check if resolved path is within project root
+    try:
+        p.relative_to(root)
+    except ValueError:
+        raise ValueError(f"Attempt to write outside project root: {path}")
+    
     return p
 
 
 @tool
-# write_file maps to: LangChain tool for creating/modifying files in the project
-# Used by the coder agent to implement the actual file changes
 def write_file(path: str, content: str) -> str:
     """Writes content to a file at the specified path within the project root."""
-    p = safe_path_for_project(path)
-    p.parent.mkdir(parents=True, exist_ok=True)
-    with open(p, "w", encoding="utf-8") as f:
-        f.write(content)
-    return f"WROTE:{p}"
+    try:
+        p = safe_path_for_project(path)
+        p.parent.mkdir(parents=True, exist_ok=True)
+        with open(p, "w", encoding="utf-8") as f:
+            f.write(content)
+        logger.info(f"✓ Successfully wrote file: {p}")
+        return f"WROTE:{p}"
+    except RuntimeError as e:
+        logger.error(f"✗ Failed to write {path}: {e}")
+        raise
 
 
 @tool
-# read_file maps to: LangChain tool for reading existing files in the project
-# Used by the coder agent to understand current file contents before making changes
 def read_file(path: str) -> str:
     """Reads content from a file at the specified path within the project root."""
     p = safe_path_for_project(path)
@@ -77,44 +117,55 @@ def read_file(path: str) -> str:
 
 
 @tool
-# get_current_directory maps to: LangChain tool for getting project root path
-# Used by the coder agent to understand the working directory context
 def get_current_directory() -> str:
     """Returns the current working directory."""
+    PROJECT_ROOT = get_project_root()
     if PROJECT_ROOT is None:
         raise RuntimeError("PROJECT_ROOT not initialized. Call init_project_root() first.")
     return str(PROJECT_ROOT)
 
 
 @tool
-# list_files maps to: LangChain tool for listing files in project directory
-# Used by the coder agent to see what files exist and plan file operations
 def list_files(directory: str = ".") -> str:
     """Lists all files in the specified directory within the project root."""
+    PROJECT_ROOT = get_project_root()
+    if PROJECT_ROOT is None:
+        raise RuntimeError("PROJECT_ROOT not initialized.")
+    
     p = safe_path_for_project(directory)
     if not p.is_dir():
         return f"ERROR: {p} is not a directory"
+    
     files = [str(f.relative_to(PROJECT_ROOT)) for f in p.glob("**/*") if f.is_file()]
     return "\n".join(files) if files else "No files found."
 
+
 @tool
-# run_cmd maps to: LangChain tool for executing shell commands
-# Used by the coder agent to run build commands, install dependencies, etc.
 def run_cmd(cmd: str, cwd: str = None, timeout: int = 30) -> Tuple[int, str, str]:
     """Runs a shell command in the specified directory and returns the result."""
+    PROJECT_ROOT = get_project_root()
+    if PROJECT_ROOT is None:
+        raise RuntimeError("PROJECT_ROOT not initialized.")
+    
     cwd_dir = safe_path_for_project(cwd) if cwd else PROJECT_ROOT
-    res = subprocess.run(cmd, shell=True, cwd=str(cwd_dir), capture_output=True, text=True, timeout=timeout)
+    res = subprocess.run(
+        cmd, 
+        shell=True, 
+        cwd=str(cwd_dir), 
+        capture_output=True, 
+        text=True, 
+        timeout=timeout
+    )
     return res.returncode, res.stdout, res.stderr
 
 
-# init_project_root maps to: initialization function for setting up the project directory
-# Called once to ensure the project root directory exists before any file operations
 def init_project_root():
     """Initializes a new project root directory with a unique serial ID."""
-    global PROJECT_ROOT
-    
     serial_id = get_next_serial_id()
-    PROJECT_ROOT = pathlib.Path.cwd() / f"generated_project_{serial_id}"
-    PROJECT_ROOT.mkdir(parents=True, exist_ok=True)
+    project_path = pathlib.Path.cwd() / f"generated_project_{serial_id}"
+    project_path.mkdir(parents=True, exist_ok=True)
     
-    return str(PROJECT_ROOT)
+    # Set the project root for the current thread
+    set_project_root(project_path)
+    
+    return project_path  # Return Path object, not string

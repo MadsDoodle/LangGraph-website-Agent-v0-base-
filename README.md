@@ -34,10 +34,11 @@ This modular design ensures a structured and iterative approach to web developme
    source venv/bin/activate  # On Windows: venv\Scripts\activate
    ```
 
-3. **Install Dependencies**:
+4. **Install Server Dependencies**:
    ```bash
-   pip install -r requirements.txt
+   pip install fastapi uvicorn
    ```
+   (Note: These are already included in requirements.txt)
 
 ## Configuration
 
@@ -52,34 +53,46 @@ This modular design ensures a structured and iterative approach to web developme
 2. **Project Root Initialization**:
    - The agent dynamically sets `PROJECT_ROOT` for secure file operations. Ensure your working directory is correctly configured.
 
-## Usage
+## Running the Server
 
-1. **Run the Agent**:
-   - Navigate to the project root and execute the main script (e.g., if a `main.py` or entry point exists):
-     ```bash
-     python -m agent.graph  # Adjust based on your entry point
-     ```
-   - Interact with the agent via prompts or input to describe the website you want to build.
+The application includes a FastAPI server that provides REST API endpoints for building websites asynchronously.
 
-2. **Generate Projects**:
-   - The agent will create new project directories (e.g., `generated_project_1`) containing generated files, HTML, CSS, JavaScript, and other assets based on your specifications.
-   - Use the provided tools for file creation, editing, and command execution within the secure boundaries.
+1. **Start the Server**:
+   ```bash
+   uvicorn agent.api:app --host 0.0.0.0 --port 8000 --reload
+   ```
+   - Access the API at `http://localhost:8000` or your configured host/port.
+   - The server includes CORS middleware for frontend integration.
 
-3. **Monitor Logs**:
-   - Check `agent_execution.log` for detailed execution history and any errors.
+2. **API Endpoints**:
+   - `GET /`: Health check endpoint.
+   - `POST /api/build-website`: Submit a user prompt to start building a website asynchronously. Returns a `task_id`.
+   - `GET /api/status/{task_id}`: Check the status and progress of a build task.
+   - `GET /api/result/{task_id}`: Get the final result of a completed build, including project path and files.
+   - `GET /api/download/{task_id}`: Download the generated project as a ZIP file.
+   - `GET /api/file/{task_id}/{file_path}`: Retrieve the content of a specific file from the project.
+   - `DELETE /api/task/{task_id}`: Delete a task and its associated project files.
+   - `GET /api/tasks`: List all tasks (for debugging).
 
-## Project Structure
+3. **Example Usage**:
+   - Send a POST request to `/api/build-website` with JSON: `{"user_prompt": "Create a simple portfolio website"}`.
+   - Use the returned `task_id` to poll `/api/status/{task_id}` until the status is "completed".
+   - Then, download or access files via the other endpoints.
+
+## Usage (Direct Agent Execution)\n\nFor direct execution without the API server:\n\n1. **Run the Agent**:\n   - Navigate to the project root and execute the main script:\n     ```bash\n     python agent/main.py  # Entry point for direct execution\n     ```\n   - Interact with the agent via prompts or input to describe the website you want to build.\n\n2. **Generate Projects**:\n   - The agent will create new project directories (e.g., `generated_project_1`) containing generated files, HTML, CSS, JavaScript, and other assets based on your specifications.\n   - Use the provided tools for file creation, editing, and command execution within the secure boundaries.\n\n3. **Monitor Logs**:\n   - Check `agent_execution.log` for detailed execution history and any errors.\n\n## Project Structure
 
 ```
 web-builder/
 ├── agent/
+│   ├── api.py            # FastAPI server for REST API endpoints
+│   ├── main.py           # Entry point for direct agent execution
 │   ├── graph.py          # Main LangGraph workflow definition
 │   ├── tools.py          # File system and utility tools
 │   ├── prompts.py        # Prompt templates for the AI agent
 │   ├── states.py         # State management for the graph
 │   └── .env              # Environment configuration
 ├── generated_project_*/  # Output directories for generated projects
-├── requirements.txt      # Python dependencies
+├── requirements.txt      # Python dependencies (includes FastAPI, Uvicorn)
 └── README.md             # This file
 ```
 
@@ -87,9 +100,11 @@ web-builder/
 
 - **LangChain & LangGraph**: For building the AI agent and workflow.
 - **OpenAI**: For language model interactions.
+- **FastAPI & Uvicorn**: For building and running the REST API server.
 - **Python-DotEnv**: For loading environment variables.
 - **Pydantic**: For data validation.
 - **LangSmith**: For tracing and debugging (optional but recommended).
+- **Pathlib2**: For additional path utilities.
 
 ## Contributing
 

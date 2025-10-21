@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calculation History</title>
+    <link rel="stylesheet" href="styles.css"> <!-- Assuming there's a CSS file for styles -->
+</head>
+<body>
+    <h1>Calculation History</h1>
+    <button onclick="window.location.href='index.html'">Back to Calculator</button>
+    <div id="history-container">
+        <h2>Your Calculations:</h2>
+        <ul id="history-list"></ul>
+    </div>
+    
+    <script src="script.js"></script>
+    <script>
+        // Fetching the calculation history from local storage
+        function displayHistory() {
+            const historyList = document.getElementById('history-list');
+            const history = JSON.parse(localStorage.getItem('calculationHistory')) || [];
+
+            historyList.innerHTML = ''; // Clear the list before displaying
+            history.forEach(item => {
+                const listItem = document.createElement('li');
+                listItem.textContent = item;
+                historyList.appendChild(listItem);
+            });
+        }
+
+        // Call the function to display the history on page load
+        displayHistory();
+    </script>
+</body>
+</html>
